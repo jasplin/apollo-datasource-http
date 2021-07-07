@@ -252,7 +252,7 @@ export abstract class HTTPDataSource<TContext = any> extends DataSource {
         data += chunk
       }
       
-      const parseJson = options.parseJSON == null || options.parseJSON;
+      const parseJson = request.parseJSON == null || request.parseJSON;
       let json
       if (data) {
         json = parseJson && sjson.parse(data) || data;
