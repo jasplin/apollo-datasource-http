@@ -31,7 +31,9 @@ export type RequestOptions = {
   query?: Dictionary<string | number>
   body?: string | Buffer | Uint8Array | Readable | null
   headers?: Dictionary<string>
-  signal?: AbortSignal | EventEmitter | null
+  signal?: AbortSignal | EventEmitter | null,
+  // Should the response body be parsed as json content. Defaults to true if not provided for backwards compatibiity
+  parseJSON?: boolean | null
 } & CacheTTLOptions
 
 export type Request = UndiciRequestOptions &
@@ -249,10 +251,11 @@ export abstract class HTTPDataSource<TContext = any> extends DataSource {
       for await (const chunk of responseData.body) {
         data += chunk
       }
-
+      
+      const parseJson = options.parseJSON == null || options.parseJSON;
       let json
       if (data) {
-        json = sjson.parse(data)
+        json = parseJson && sjson.parse(data) || data;
       }
 
       const response: Response<TResult> = {
@@ -287,7 +290,7 @@ export abstract class HTTPDataSource<TContext = any> extends DataSource {
       if (options.requestCache) {
         const cacheItem = await this.cache.get(`staleIfError:${cacheKey}`)
         if (cacheItem) {
-          const response: Response<TResult> = sjson.parse(cacheItem)
+          const response: Response<TResult> =  sjson.parse(cacheItem)
           response.isFromCache = true
           return response
         }
@@ -326,7 +329,8 @@ export abstract class HTTPDataSource<TContext = any> extends DataSource {
       if (request.requestCache) {
         const cacheItem = await this.cache.get(cacheKey)
         if (cacheItem) {
-          const cachedResponse: Response<TResult> = sjson.parse(cacheItem)
+          const parseJson = request.parseJSON == null || request.parseJSON;
+          const cachedResponse: Response<TResult> = parseJson && sjson.parse(cacheItem) || cacheItem
           cachedResponse.memoized = false
           cachedResponse.isFromCache = true
           return cachedResponse

@@ -1023,3 +1023,38 @@ test('Should be able to pass custom Undici Pool', async (t) => {
 
   t.deepEqual(response.body, { name: 'foo' })
 })
+
+
+test('Request option parseJson allows for non json body contents', async (t) => {
+  t.plan(2)
+
+  const path = '/'
+
+  const wanted = `<?xml version="1.0" encoding="ISO-8859-1"?><response>.........</response> `;
+
+  const server = http.createServer((req, res) => {
+    t.is(req.method, 'POST')
+    res.write(wanted)
+    res.end()
+    res.socket?.unref()
+  })
+
+  t.teardown(server.close.bind(server))
+
+  server.listen()
+
+  const baseURL = `http://localhost:${(server.address() as AddressInfo)?.port}`
+
+  const dataSource = new (class extends HTTPDataSource {
+    constructor() {
+      super(baseURL)
+    }
+    postFoo() {
+      return this.post(path, { parseJSON: false})
+    }
+  })()
+
+  const response = await dataSource.postFoo()
+
+  t.deepEqual(response.body, wanted)
+})
